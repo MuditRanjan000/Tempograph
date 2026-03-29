@@ -53,17 +53,21 @@ if __name__ == "__main__":
     n        = int(sys.argv[1]) if len(sys.argv) > 1 else 10000
     n_pages  = int(sys.argv[2]) if len(sys.argv) > 2 else 500
     trace_type = "correlated"
+    out_file   = None
     for i, arg in enumerate(sys.argv):
         if arg == "--type" and i + 1 < len(sys.argv):
             trace_type = sys.argv[i + 1]
+        if arg == "--out" and i + 1 < len(sys.argv):
+            out_file = sys.argv[i + 1]
 
-    random.seed(42)  # reproducible results
+    random.seed(42)
 
-    print(f"# Synthetic trace: type={trace_type} n={n} pages={n_pages}")
+    import sys as _sys
+    if out_file:
+        import io
+        _sys.stdout = io.TextIOWrapper(open(out_file, 'wb'), encoding='ascii', newline='\n')
+
     if   trace_type == "correlated": gen_correlated(n, n_pages)
     elif trace_type == "uniform":    gen_uniform(n, n_pages)
     elif trace_type == "scan":       gen_scan(n, n_pages)
     elif trace_type == "mixed":      gen_mixed(n, n_pages)
-    else:
-        print(f"Unknown type: {trace_type}", file=sys.stderr)
-        sys.exit(1)
