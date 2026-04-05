@@ -4,15 +4,12 @@
  *
  * Optimisations over v1:
  *   1. O(N) incremental cached scoring instead of O(N^2) per fault
- *   2. LRU tiebreaking: equal-score pages evicted by recency
- *   3. Faster decay: skips zero-weight edges entirely
- *   4. Periodic full resync every RESYNC_INTERVAL faults to
- *      correct drift caused by graph updates between faults
- *
- * Why NOT bidirectional scoring:
- *   Forward-only scoring (w(p->q)) correctly identifies "tail" pages
- *   in sequential scan workloads. Bidirectional scoring destroys this
- *   signal, degrading scan performance to LRU levels (100% faults).
+ *   2. MRU tiebreaking: equal-score pages broken by MOST recently used
+ *      (MRU tiebreaking is optimal for cyclic scan workloads - evicts
+ *       the page just used, keeping older pages that cycle back sooner)
+ *   3. Faster decay: skips zero-weight edges
+ *   4. Periodic full resync every RESYNC_INTERVAL faults to correct
+ *      score drift from graph updates between faults
  */
 
 #include "tempograph.h"
@@ -30,21 +27,21 @@ static int size = 0;
 
 /* ── Cached scores ──────────────────────────────────────────────── */
 /*
- * cached_score[f] = SUM of w(frames[f] -> frames[g]) for all g!=f
- *
- * Updated O(N) on each fault:
- *   Evict old_idx from victim:  cached_score[f] -= w(frames[f], old_idx)
- *   Load  new idx  at victim:   cached_score[victim] = SUM w(idx, frames[g])
- *                               cached_score[f]     += w(frames[f], idx)
- *
- * Scores drift between faults as graph grows from HITs.
- * Full O(N^2) resync every RESYNC_INTERVAL faults corrects this.
+ * cached_score[f] = SUM w(frames[f] -> frames[g]) for all g != f
+ * Updated O(N) on each fault. Full O(N^2) resync every
+ * RESYNC_INTERVAL faults to correct drift from HITs.
  */
 static long cached_score[MAX_FRAMES];
 static int  fault_count = 0;
 #define RESYNC_INTERVAL 500
 
-/* ── LRU tiebreaking ────────────────────────────────────────────── */
+/* ── MRU tiebreaking ────────────────────────────────────────────── */
+/*
+ * When scores are equal (cold graph), evict MOST recently used page.
+ * This keeps older pages around — pages loaded earlier come back
+ * sooner in cyclic workloads (better than LRU tiebreaking which
+ * evicts oldest, identical to pure LRU = 100% faults on scan).
+ */
 static int lru_time[MAX_FRAMES];
 static int global_time = 0;
 
@@ -103,13 +100,20 @@ static void resync_scores(void) {
 static int choose_victim(void) {
     int  best_frame = -1;
     long best_score = LONG_MAX;
-    int  best_time  = INT_MAX;
+    int  best_time  = -1;   /* MRU: track HIGHEST time seen so far */
 
     for (int f = 0; f < cap; f++) {
         if (frames[f] == -1) return f;
+
         long s = cached_score[f];
         int  t = lru_time[f];
-        if (s < best_score || (s == best_score && t < best_time)) {
+
+        /*
+         * Evict: lowest score (weakest graph connection)
+         * Tie:   evict MOST recently used (MRU tiebreaking)
+         *        This keeps older pages — they cycle back sooner.
+         */
+        if (s < best_score || (s == best_score && t > best_time)) {
             best_score = s;
             best_time  = t;
             best_frame = f;
@@ -155,7 +159,7 @@ int tg_access(int page) {
 
     int victim = choose_victim();
 
-    /* Remove evicted page contribution */
+    /* Remove evicted page contribution from cached scores */
     if (frames[victim] != -1) {
         int old_idx = page_idx(frames[victim]);
         for (int f = 0; f < cap; f++)
@@ -172,14 +176,14 @@ int tg_access(int page) {
     lru_time[victim] = global_time;
     if (size < cap) size++;
 
-    /* Compute new slot's score */
+    /* Compute cached_score for victim slot: O(N) */
     long new_score = 0;
     for (int g = 0; g < cap; g++)
         if (g != victim && frames[g] != -1)
             new_score += graph[idx][page_idx(frames[g])];
     cached_score[victim] = new_score;
 
-    /* Add new page contribution to others */
+    /* Add new page contribution to all other cached scores: O(N) */
     for (int f = 0; f < cap; f++)
         if (f != victim && frames[f] != -1)
             cached_score[f] += graph[page_idx(frames[f])][idx];
