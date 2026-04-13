@@ -16,12 +16,12 @@
 #include <limits.h>
 
 /* ── Graph ──────────────────────────────────────────────────────── */
-static uint16_t graph[MAX_UNIQUE][MAX_UNIQUE];
+static uint16_t graph[MAX_UNIQUE][MAX_UNIQUE];  // 4096 x 4096 x 2 bytes = 32MB
 
 /* ── Frame pool ─────────────────────────────────────────────────── */
-static int frames[MAX_FRAMES];
-static int in_frames[MAX_UNIQUE];
-static int frame_of[MAX_UNIQUE];
+static int frames[MAX_FRAMES];      // which page is in each slot
+static int in_frames[MAX_UNIQUE];   // O(1) membership check
+static int frame_of[MAX_UNIQUE];    // which slot holds this page
 static int cap  = 0;
 static int size = 0;
 
@@ -46,12 +46,12 @@ static int lru_time[MAX_FRAMES];
 static int global_time = 0;
 
 /* ── Sliding window ─────────────────────────────────────────────── */
+//Remembers the last W page accesses. Used to update the graph on each access. 
 #define MAX_WINDOW 64
-static int window[MAX_WINDOW];
-static int win_head = 0;
-static int win_size = 0;
-static int W = DEFAULT_WINDOW;
-
+static int window[MAX_WINDOW];  // circular buffer
+static int win_head = 0;        // next write position
+static int win_size = 0;        // current entries
+static int W = DEFAULT_WINDOW;  // window size (default 10)
 /* ── Decay ──────────────────────────────────────────────────────── */
 static float alpha        = 1.0f;
 static int   access_count = 0;
@@ -61,7 +61,7 @@ static int   access_count = 0;
 static inline int page_idx(int page) {
     return ((unsigned)page) % MAX_UNIQUE;
 }
-
+// Update graph edges from all pages in the window to the new page. O(W) time.
 static void update_graph(int new_idx) {
     for (int i = 0; i < win_size; i++) {
         int pos = (win_head - 1 - i + W + W) % W;
@@ -96,7 +96,7 @@ static void resync_scores(void) {
         cached_score[f] = s;
     }
 }
-
+// Choose victim frame to evict: lowest score, tie broken by MRU (highest time). O(N) time.
 static int choose_victim(void) {
     int  best_frame = -1;
     long best_score = LONG_MAX;
@@ -142,7 +142,7 @@ int tg_access(int page) {
         apply_decay();
 
     /* ── HIT ─────────────────────────────────────────────────── */
-    if (in_frames[idx]) {
+    if (in_frames[idx]) {   // O(1) lookup
         int f = frame_of[idx];
         lru_time[f] = global_time;
         update_graph(idx);
@@ -162,7 +162,7 @@ int tg_access(int page) {
     /* Remove evicted page contribution from cached scores */
     if (frames[victim] != -1) {
         int old_idx = page_idx(frames[victim]);
-        for (int f = 0; f < cap; f++)
+        for (int f = 0; f < cap; f++)       // Remove old page contribution: O(N)
             if (f != victim && frames[f] != -1)
                 cached_score[f] -= graph[page_idx(frames[f])][old_idx];
         in_frames[old_idx] = 0;
