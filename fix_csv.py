@@ -23,12 +23,21 @@ import glob
 
 # ── Config ────────────────────────────────────────────────────────────
 exe    = ".\\tempograph.exe"
-traces = [os.path.splitext(os.path.basename(p))[0] for p in glob.glob("traces/*.txt")]
+traces = sorted([os.path.splitext(os.path.basename(p))[0] for p in glob.glob("traces/*.txt")])
 frames = [16, 32, 64, 128, 256]
 algos  = ["lru", "lfu", "arc", "tempograph", "sieve"]
 
 # Sensitivity analysis: vary W for TempoGraph on scan trace
 window_sizes = [5, 10, 15, 20, 25]
+
+# ── Pre-flight checks ─────────────────────────────────────────────────
+if not os.path.exists(exe):
+    print(f"ERROR: Executable '{exe}' not found. Run 'make' first.")
+    sys.exit(1)
+
+if not traces:
+    print("ERROR: No trace files found in 'traces/' directory.")
+    sys.exit(1)
 
 os.makedirs("results",        exist_ok=True)
 os.makedirs("results\\plots", exist_ok=True)
@@ -46,9 +55,8 @@ def run_cmd(cmd):
         print(f"  ERROR: {' '.join(cmd)}: {e}")
     return None
 
-# ── Main experiment loop ──────────────────────────────────────────────
-print("=" * 60)
-print("TempoGraph Experiment Runner")
+print(f"Found {len(traces)} trace files: {', '.join(traces)}")
+print(f"Running {len(algos)} algorithms across {len(frames)} frame sizes...")
 print("=" * 60)
 
 rows = ["trace_type,algorithm,frames,accesses,faults,fault_rate,hit_rate,time_ms"]
@@ -98,4 +106,4 @@ if os.path.exists(scan_path):
 else:
     print(f"WARNING: {scan_path} not found — skipping sensitivity analysis")
 
-print("\nDone! Now run: python plot_results.py")
+print("\nDone! Run 'python plot_results.py' to generate plots.")
