@@ -19,10 +19,11 @@ Output:
 import subprocess
 import os
 import sys
+import glob
 
 # ── Config ────────────────────────────────────────────────────────────
 exe    = ".\\tempograph.exe"
-traces = ["correlated", "uniform", "scan", "mixed"]
+traces = [os.path.splitext(os.path.basename(p))[0] for p in glob.glob("traces/*.txt")]
 frames = [16, 32, 64, 128, 256]
 algos  = ["lru", "lfu", "arc", "tempograph", "sieve"]
 
