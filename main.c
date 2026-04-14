@@ -2,11 +2,12 @@
 /*
  * main.c - TempoGraph Simulation Framework
  * CSD 204 - Operating Systems Project
+ * Group 12: Mudit Ranjan, Mugdh Mittal, Aayush Trivedi
  *
  * Usage:
  *   ./tempograph -a <algo> -f <frames> [-w <window>] [-d <decay>] <tracefile>
  *
- *   -a  Algorithm: lru | lfu | arc | tempograph | all
+ *   -a  Algorithm: lru | lfu | arc | tempograph | sieve | all
  *   -f  Number of physical frames (e.g. 64)
  *   -w  TempoGraph window size W (default: 10)
  *   -d  TempoGraph decay factor 0.0-1.0 (default: 1.0 = no decay)
@@ -22,6 +23,13 @@
  *
  * Output (CSV-friendly):
  *   algorithm,frames,accesses,faults,fault_rate,hit_rate,time_ms
+ *
+ * Algorithms:
+ *   LRU        - Silberschatz et al., OS Concepts, 10th ed., Ch. 10
+ *   LFU        - Silberschatz et al., OS Concepts, 10th ed., Ch. 10
+ *   ARC        - Megiddo & Modha, USENIX FAST 2003
+ *   TempoGraph - Novel graph-based algorithm, CSD204 Group 12, 2026
+ *   SIEVE      - Zhang et al., USENIX NSDI 2024, pp. 1229-1246
  */
 
 #include <stdio.h>
@@ -34,13 +42,22 @@
 #include "lfu.h"
 #include "arc.h"
 #include "tempograph.h"
-static const char *ALGO_NAMES[] = {"LRU", "LFU", "ARC", "TempoGraph"};
+#include "sieve.h"
+
+/* Algorithm display names — order must match ALGO_* constants in common.h */
+static const char *ALGO_NAMES[] = {"LRU", "LFU", "ARC", "TempoGraph", "SIEVE"};
 
 /* ── Trace storage ──────────────────────────────────────────────── */
 static int trace[MAX_TRACE];
 static int trace_len = 0;
 
 /* ── Load trace from file ───────────────────────────────────────── */
+/*
+ * load_trace - reads one integer page number per line.
+ * Lines starting with '#' are treated as comments and skipped.
+ * Based on: standard trace format used by UMass Trace Repository
+ *   and libCacheSim (NSDI24-SIEVE benchmark suite).
+ */
 static int load_trace(const char *path) {
     FILE *f = fopen(path, "r");
     if (!f) { fprintf(stderr, "Error: cannot open trace '%s'\n", path); return 0; }
@@ -57,6 +74,10 @@ static int load_trace(const char *path) {
 }
 
 /* ── Run one simulation pass ────────────────────────────────────── */
+/*
+ * run_sim - replay the loaded trace with the given algorithm.
+ * Returns a Result struct with fault/hit rates and timing.
+ */
 static Result run_sim(int algo, int n_frames, int window, float decay) {
     Result r = {0};
     r.n_accesses = trace_len;
@@ -67,6 +88,7 @@ static Result run_sim(int algo, int n_frames, int window, float decay) {
         case ALGO_LFU:        lfu_init(n_frames);                   break;
         case ALGO_ARC:        arc_init(n_frames);                   break;
         case ALGO_TEMPOGRAPH: tg_init (n_frames, window, decay);    break;
+        case ALGO_SIEVE:      sieve_init(n_frames);                 break;
     }
 
     /* Time the simulation */
@@ -77,27 +99,29 @@ static Result run_sim(int algo, int n_frames, int window, float decay) {
     for (int i = 0; i < trace_len; i++) {
         int result;
         switch (algo) {
-            case ALGO_LRU:        result = lru_access(trace[i]); break;
-            case ALGO_LFU:        result = lfu_access(trace[i]); break;
-            case ALGO_ARC:        result = arc_access(trace[i]); break;
-            case ALGO_TEMPOGRAPH: result =  tg_access(trace[i]); break;
+            case ALGO_LRU:        result = lru_access(trace[i]);   break;
+            case ALGO_LFU:        result = lfu_access(trace[i]);   break;
+            case ALGO_ARC:        result = arc_access(trace[i]);   break;
+            case ALGO_TEMPOGRAPH: result =  tg_access(trace[i]);   break;
+            case ALGO_SIEVE:      result = sieve_access(trace[i]); break;
             default: result = FAULT;
         }
         if (result == FAULT) r.n_faults++;
     }
 
     clock_gettime(CLOCK_MONOTONIC, &t1);
-    r.time_ms   = (t1.tv_sec - t0.tv_sec) * 1000.0
-                + (t1.tv_nsec - t0.tv_nsec) / 1e6;
+    r.time_ms    = (t1.tv_sec - t0.tv_sec) * 1000.0
+                 + (t1.tv_nsec - t0.tv_nsec) / 1e6;
     r.fault_rate = (float)r.n_faults / r.n_accesses;
     r.hit_rate   = 1.0f - r.fault_rate;
 
     /* Clean up algorithm state */
     switch (algo) {
-        case ALGO_LRU:        lru_reset(); break;
-        case ALGO_LFU:        lfu_reset(); break;
-        case ALGO_ARC:        arc_reset(); break;
-        case ALGO_TEMPOGRAPH: tg_reset();  break;
+        case ALGO_LRU:        lru_reset();   break;
+        case ALGO_LFU:        lfu_reset();   break;
+        case ALGO_ARC:        arc_reset();   break;
+        case ALGO_TEMPOGRAPH: tg_reset();    break;
+        case ALGO_SIEVE:      sieve_reset(); break;
     }
     return r;
 }
@@ -131,6 +155,7 @@ int main(int argc, char *argv[]) {
             else if (!strcmp(argv[i], "lfu"))        algo = ALGO_LFU;
             else if (!strcmp(argv[i], "arc"))        algo = ALGO_ARC;
             else if (!strcmp(argv[i], "tempograph")) algo = ALGO_TEMPOGRAPH;
+            else if (!strcmp(argv[i], "sieve"))      algo = ALGO_SIEVE;
             else if (!strcmp(argv[i], "all"))        algo = -1;
             else { fprintf(stderr, "Unknown algorithm: %s\n", argv[i]); return 1; }
         }
@@ -139,7 +164,7 @@ int main(int argc, char *argv[]) {
 
     if (!tracefile) {
         fprintf(stderr,
-            "Usage: %s -a <lru|lfu|arc|tempograph|all> -f <frames> "
+            "Usage: %s -a <lru|lfu|arc|tempograph|sieve|all> -f <frames> "
             "[-w <window>] [-d <decay>] <tracefile>\n", argv[0]);
         return 1;
     }
