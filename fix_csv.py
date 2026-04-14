@@ -23,7 +23,12 @@ import glob
 
 # ── Config ────────────────────────────────────────────────────────────
 exe    = ".\\tempograph.exe"
-traces = sorted([os.path.splitext(os.path.basename(p))[0] for p in glob.glob("traces/*.txt")])
+TRACE_EXTENSIONS = ("*.txt", "*.csv")
+trace_paths = sorted(
+    p for ext in TRACE_EXTENSIONS for p in glob.glob(os.path.join("traces", ext))
+)
+spc_files = sorted(glob.glob(os.path.join("traces", "*.spc")))
+traces = [os.path.basename(p) for p in trace_paths]
 frames = [16, 32, 64, 128, 256]
 algos  = ["lru", "lfu", "arc", "tempograph", "sieve"]
 
@@ -35,12 +40,17 @@ if not os.path.exists(exe):
     print(f"ERROR: Executable '{exe}' not found. Run 'make' first.")
     sys.exit(1)
 
+if spc_files:
+    print("NOTE: .spc files are not directly supported by the simulator.")
+    print("      Convert them with preprocess_trace.py to a .txt file first.")
+
 if not traces:
-    print("ERROR: No trace files found in 'traces/' directory.")
+    print("ERROR: No .txt or .csv trace files found in 'traces/' directory.")
     sys.exit(1)
 
 os.makedirs("results",        exist_ok=True)
 os.makedirs("results\\plots", exist_ok=True)
+print(f"Detected trace files: {', '.join(traces)}")
 
 # ── Helper ────────────────────────────────────────────────────────────
 def run_cmd(cmd):
@@ -61,12 +71,13 @@ print("=" * 60)
 
 rows = ["trace_type,algorithm,frames,accesses,faults,fault_rate,hit_rate,time_ms"]
 
-for trace in traces:
-    trace_path = f"traces\\{trace}.txt"
+for trace_file in traces:
+    trace_path = os.path.join("traces", trace_file)
+    trace_type = os.path.splitext(trace_file)[0]
     if not os.path.exists(trace_path):
         print(f"WARNING: trace file not found: {trace_path} — skipping")
         continue
-    print(f"\nTrace: {trace}")
+    print(f"\nTrace: {trace_type} ({trace_file})")
     for f in frames:
         for algo in algos:
             cmd = [exe, "-a", algo, "-f", str(f)]
@@ -75,7 +86,7 @@ for trace in traces:
             cmd.append(trace_path)
             line = run_cmd(cmd)
             if line:
-                rows.append(f"{trace},{line}")
+                rows.append(f"{trace_type},{line}")
                 print(f"  {algo:<12} f={f:<4} done")
 
 with open("results\\results.csv", "w") as f:
