@@ -22,7 +22,7 @@ import sys
 import glob
 
 # ── Config ────────────────────────────────────────────────────────────
-exe    = ".\\tempograph.exe"
+exe    = "./tempograph"
 TRACE_EXTENSIONS = ("*.txt", "*.csv")
 trace_paths = sorted(
     p for ext in TRACE_EXTENSIONS for p in glob.glob(os.path.join("traces", ext))
@@ -49,7 +49,7 @@ if not traces:
     sys.exit(1)
 
 os.makedirs("results",        exist_ok=True)
-os.makedirs("results\\plots", exist_ok=True)
+os.makedirs("results/plots", exist_ok=True)
 print(f"Detected trace files: {', '.join(traces)}")
 
 # ── Helper ────────────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ for trace_file in traces:
                 rows.append(f"{trace_type},{line}")
                 print(f"  {algo:<12} f={f:<4} done")
 
-with open("results\\results.csv", "w") as f:
+with open("results/results.csv", "w") as f:
     f.write("\n".join(rows))
 
 print(f"\nMain CSV saved: results\\results.csv  ({len(rows)-1} rows)")
@@ -100,7 +100,7 @@ print("Sensitivity Analysis: Window Size W (TempoGraph on scan)")
 print("=" * 60)
 
 sens_rows = ["window_size,frames,accesses,faults,fault_rate,hit_rate,time_ms"]
-scan_path = "traces\\scan.txt"
+scan_path = "traces/scan.txt"
 
 if os.path.exists(scan_path):
     for W in window_sizes:
@@ -111,7 +111,7 @@ if os.path.exists(scan_path):
                 sens_rows.append(f"{W},{line.split(',', 1)[1]}")   # drop algo name column
                 print(f"  W={W:<3} f={f:<4} done")
 
-    with open("results\\sensitivity_W.csv", "w") as f:
+    with open("results/sensitivity_W.csv", "w") as f:
         f.write("\n".join(sens_rows))
     print(f"\nSensitivity CSV saved: results\\sensitivity_W.csv")
 else:
