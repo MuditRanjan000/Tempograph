@@ -6,3 +6,6 @@ libCacheSim/data/*.zst
 tempograph.exe
 *.o
 build/
+traces/
+*.csv
+results/plots/
