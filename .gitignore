@@ -2,3 +2,7 @@ libCacheSim/data/*.csv
 libCacheSim/data/*.zst
 libCacheSim/data/*.csv
 libCacheSim/data/*.zst
+
+tempograph.exe
+*.o
+build/
