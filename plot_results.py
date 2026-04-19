@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+<<<<<<< HEAD
 plot_results.py - Generate comparison graphs from simulation results
 CSD 204 - Operating Systems Project
 Group 12: Mudit Ranjan, Mugdh Mittal, Aayush Trivedi
@@ -16,10 +17,14 @@ Usage:
     python plot_results.py
 
 Output: results/plots/ directory
+=======
+plot_results.py - Enhanced version with support for additional traces
+>>>>>>> 54cfb7f (Final Changes)
 """
 
 import csv
 import os
+import math
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -32,6 +37,7 @@ SENSITIVITY_FILE = "results/sensitivity_W.csv"
 PLOTS_DIR        = "results/plots"
 FRAME_SIZES      = [16, 32, 64, 128, 256]
 ALGOS            = ["LRU", "LFU", "ARC", "TempoGraph", "SIEVE"]
+<<<<<<< HEAD
 
 SYNTH_TRACES = ["correlated", "uniform", "scan", "mixed"]
 ALL_TRACES   = ["correlated", "uniform", "scan", "mixed", "Financial1"]
@@ -43,6 +49,8 @@ TRACE_LABELS = {
     "mixed":      "Mixed",
     "Financial1": "Financial1 (Real)",
 }
+=======
+>>>>>>> 54cfb7f (Final Changes)
 
 COLORS = {
     "LRU":        "#4878CF",
@@ -51,6 +59,7 @@ COLORS = {
     "TempoGraph": "#B47CC7",
     "SIEVE":      "#FF8C00",
 }
+
 MARKERS = {
     "LRU":        "o",
     "LFU":        "s",
@@ -61,34 +70,50 @@ MARKERS = {
 
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
-# ── Load main data ────────────────────────────────────────────────────
+# ── Load data ─────────────────────────────────────────────────────────
 data = []
 try:
     with open(RESULTS_FILE) as f:
         reader = csv.DictReader(f)
         for row in reader:
+            trace_name = row["trace_type"].replace(".txt", "").strip()
+
             data.append({
-                "trace":      row["trace_type"],
+                "trace":      trace_name,
                 "algo":       row["algorithm"],
                 "frames":     int(row["frames"]),
                 "fault_rate": float(row["fault_rate"]),
                 "hit_rate":   float(row["hit_rate"]),
                 "time_ms":    float(row["time_ms"]),
             })
+
     print(f"Loaded {len(data)} rows from {RESULTS_FILE}")
+<<<<<<< HEAD
     found_traces = sorted(set(d["trace"] for d in data))
     print(f"Traces in CSV: {found_traces}")
+=======
+
+>>>>>>> 54cfb7f (Final Changes)
 except FileNotFoundError:
-    print(f"ERROR: {RESULTS_FILE} not found. Run fix_csv.py first.")
+    print(f"ERROR: {RESULTS_FILE} not found.")
     exit(1)
 
+# ── Extract unique traces automatically ───────────────────────────────
+TRACE_TYPES = sorted(set(d["trace"] for d in data))
+print("Detected traces:", TRACE_TYPES)
+
+
+# ── Safe getter with debug ────────────────────────────────────────────
 def get(trace, algo, frames, metric):
     for d in data:
         if d["trace"] == trace and d["algo"] == algo and d["frames"] == frames:
             return d[metric]
+
+    print(f"[WARN] Missing: trace={trace}, algo={algo}, frames={frames}")
     return None
 
 
+<<<<<<< HEAD
 # ── Plot 1: Fault rate vs Frame size — Synthetic traces (2x2) ────────
 fig, axes = plt.subplots(2, 2, figsize=(13, 9))
 fig.suptitle("Page Fault Rate vs Frame Size — Synthetic Traces\n(Lower is Better)",
@@ -99,25 +124,63 @@ for ax, trace in zip(axes.flat, SYNTH_TRACES):
         rates       = [get(trace, algo, f, "fault_rate") for f in FRAME_SIZES]
         frames_used = [f for f, r in zip(FRAME_SIZES, rates) if r is not None]
         rates_clean = [r for r in rates if r is not None]
+=======
+# ── Plot 1: Fault rate vs Frame size ──────────────────────────────────
+num_traces = len(TRACE_TYPES)
+cols = 3
+rows = math.ceil(num_traces / cols)
+
+fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
+axes = axes.flatten()
+
+fig.suptitle("Page Fault Rate vs Frame Size\n(Lower is Better)",
+             fontsize=14, fontweight="bold")
+
+for idx, trace in enumerate(TRACE_TYPES):
+    ax = axes[idx]
+
+    for algo in ALGOS:
+        rates = [get(trace, algo, f, "fault_rate") for f in FRAME_SIZES]
+
+        frames_used = [f for f, r in zip(FRAME_SIZES, rates) if r is not None]
+        rates_clean = [r for r in rates if r is not None]
+
+>>>>>>> 54cfb7f (Final Changes)
         if not rates_clean:
             continue
-        ax.plot(frames_used, rates_clean,
-                label=algo, color=COLORS[algo],
-                marker=MARKERS[algo], linewidth=2, markersize=7)
 
+<<<<<<< HEAD
     ax.set_title(TRACE_LABELS[trace], fontweight="bold")
     ax.set_xlabel("Physical Frames")
     ax.set_ylabel("Page Fault Rate")
     ax.legend(fontsize=8)
+=======
+        ax.plot(frames_used, rates_clean,
+                label=algo,
+                color=COLORS[algo],
+                marker=MARKERS[algo],
+                linewidth=2,
+                markersize=6)
+
+    ax.set_title(f"{trace}", fontweight="bold")
+    ax.set_xlabel("Frames")
+    ax.set_ylabel("Fault Rate")
+>>>>>>> 54cfb7f (Final Changes)
     ax.grid(True, alpha=0.3)
     ax.yaxis.set_major_formatter(ticker.PercentFormatter(xmax=1))
+    ax.legend(fontsize=7)
+
+# Remove unused axes
+for i in range(len(TRACE_TYPES), len(axes)):
+    fig.delaxes(axes[i])
 
 plt.tight_layout()
-plt.savefig(f"{PLOTS_DIR}/fault_rate_vs_frames.png", dpi=150, bbox_inches="tight")
+plt.savefig(f"{PLOTS_DIR}/fault_rate_vs_frames.png", dpi=150)
 plt.close()
-print(f"Saved: {PLOTS_DIR}/fault_rate_vs_frames.png")
+print("Saved: fault_rate_vs_frames.png")
 
 
+<<<<<<< HEAD
 # ── Plot 2: Financial1 Real Trace — DEDICATED PLOT ───────────────────
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 fig.suptitle("Financial1 Real Trace (5M Accesses — UMass Trace Repository)\n"
@@ -200,8 +263,33 @@ ax.set_title(
 )
 ax.set_xticks(x)
 ax.set_xticklabels([TRACE_LABELS[t] for t in ALL_TRACES], fontsize=10)
+=======
+# ── Plot 2: Hit rate at frame=64 ──────────────────────────────────────
+fig, ax = plt.subplots(figsize=(12, 5))
+
+x = range(len(TRACE_TYPES))
+bar_width = 0.15
+offsets = list(range(-2, 3))
+
+for i, algo in enumerate(ALGOS):
+    hit_rates = [get(t, algo, 64, "hit_rate") or 0 for t in TRACE_TYPES]
+
+    ax.bar([xi + offsets[i] * bar_width for xi in x],
+           hit_rates,
+           bar_width,
+           label=algo,
+           color=COLORS[algo],
+           edgecolor="white")
+
+ax.set_title("Cache Hit Rate at 64 Frames", fontweight="bold")
+ax.set_xticks(list(x))
+ax.set_xticklabels(TRACE_TYPES, rotation=20)
+>>>>>>> 54cfb7f (Final Changes)
 ax.set_ylabel("Hit Rate")
+ax.set_ylim(0, 1)
+ax.grid(True, axis="y", alpha=0.3)
 ax.yaxis.set_major_formatter(ticker.PercentFormatter(xmax=1))
+<<<<<<< HEAD
 ax.legend(fontsize=9)
 ax.grid(True, axis="y", alpha=0.3)
 ax.set_ylim(0, 1.05)
@@ -215,19 +303,30 @@ for i, trace in enumerate(ALL_TRACES):
     if all(tg >= o for o in others):
         ax.text(x[i] + offsets[3] * bar_width, tg + 0.012,
                 "★", ha="center", fontsize=12, color="purple", fontweight="bold")
+=======
+ax.legend()
+>>>>>>> 54cfb7f (Final Changes)
 
 plt.tight_layout()
-plt.savefig(f"{PLOTS_DIR}/hit_rate_bar.png", dpi=150, bbox_inches="tight")
+plt.savefig(f"{PLOTS_DIR}/hit_rate_bar.png", dpi=150)
 plt.close()
-print(f"Saved: {PLOTS_DIR}/hit_rate_bar.png")
+print("Saved: hit_rate_bar.png")
 
+<<<<<<< HEAD
+=======
+
+# ── Plot 3: TempoGraph improvement over LRU ───────────────────────────
+fig, ax = plt.subplots(figsize=(10, 5))
+>>>>>>> 54cfb7f (Final Changes)
 
 # ── Plot 4: TempoGraph vs LRU improvement — ALL traces ───────────────
 fig, ax = plt.subplots(figsize=(12, 5))
 
 for trace in ALL_TRACES:
     improvements = []
+
     for f in FRAME_SIZES:
+<<<<<<< HEAD
         lru_fr = get(trace, "LRU",        f, "fault_rate")
         tg_fr  = get(trace, "TempoGraph", f, "fault_rate")
         if lru_fr is not None and tg_fr is not None and lru_fr > 0:
@@ -249,17 +348,42 @@ ax.set_title(
 ax.set_xlabel("Physical Frames")
 ax.set_ylabel("Fault Rate Reduction (%)")
 ax.legend(fontsize=9)
+=======
+        lru = get(trace, "LRU", f, "fault_rate")
+        tg  = get(trace, "TempoGraph", f, "fault_rate")
+
+        if lru and tg and lru > 0:
+            improvements.append((lru - tg) / lru * 100)
+        else:
+            improvements.append(0)
+
+    ax.plot(FRAME_SIZES, improvements,
+            marker="o",
+            linewidth=2,
+            label=trace)
+
+ax.axhline(0, linestyle="--", linewidth=1)
+ax.set_title("TempoGraph Improvement over LRU (%)", fontweight="bold")
+ax.set_xlabel("Frames")
+ax.set_ylabel("Improvement (%)")
+>>>>>>> 54cfb7f (Final Changes)
 ax.grid(True, alpha=0.3)
+ax.legend()
 
 plt.tight_layout()
-plt.savefig(f"{PLOTS_DIR}/tempograph_vs_lru.png", dpi=150, bbox_inches="tight")
+plt.savefig(f"{PLOTS_DIR}/tempograph_vs_lru.png", dpi=150)
 plt.close()
-print(f"Saved: {PLOTS_DIR}/tempograph_vs_lru.png")
+print("Saved: tempograph_vs_lru.png")
 
 
+<<<<<<< HEAD
 # ── Plot 5: Window size sensitivity on scan trace ─────────────────────
+=======
+# ── Plot 4: Sensitivity (if exists) ───────────────────────────────────
+>>>>>>> 54cfb7f (Final Changes)
 try:
     sens_data = []
+
     with open(SENSITIVITY_FILE) as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -270,39 +394,50 @@ try:
             })
 
     fig, ax = plt.subplots(figsize=(9, 5))
+
     window_sizes = sorted(set(d["W"] for d in sens_data))
 
     for f in FRAME_SIZES:
         rates = []
-        for W in window_sizes:
-            match = [d["fault_rate"] for d in sens_data if d["W"] == W and d["frames"] == f]
-            rates.append(match[0] if match else None)
-        rates_clean = [r for r in rates if r is not None]
-        W_clean     = [W for W, r in zip(window_sizes, rates) if r is not None]
-        ax.plot(W_clean, rates_clean, marker="o", linewidth=2, markersize=6,
-                label=f"{f} frames")
 
+<<<<<<< HEAD
     ax.set_title(
         "TempoGraph: Window Size W vs Fault Rate (Scan Trace)\n"
         "Sensitivity Analysis — W=10 is the default (dashed line)",
         fontsize=12, fontweight="bold"
     )
+=======
+        for W in window_sizes:
+            match = [d["fault_rate"] for d in sens_data
+                     if d["W"] == W and d["frames"] == f]
+
+            rates.append(match[0] if match else None)
+
+        W_clean = [W for W, r in zip(window_sizes, rates) if r is not None]
+        rates_clean = [r for r in rates if r is not None]
+
+        ax.plot(W_clean, rates_clean, marker="o", label=f"{f} frames")
+
+    ax.set_title("TempoGraph Sensitivity to Window Size W", fontweight="bold")
+>>>>>>> 54cfb7f (Final Changes)
     ax.set_xlabel("Window Size W")
-    ax.set_ylabel("Page Fault Rate")
-    ax.yaxis.set_major_formatter(ticker.PercentFormatter(xmax=1))
-    ax.legend(title="Frame Count", fontsize=8)
+    ax.set_ylabel("Fault Rate")
     ax.grid(True, alpha=0.3)
+<<<<<<< HEAD
     ax.axvline(10, color="gray", linewidth=1.2, linestyle=":", alpha=0.8)
     ax.text(10.3, 0.98, "W=10\n(default)", fontsize=8, color="gray",
             va="top", transform=ax.get_xaxis_transform())
+=======
+    ax.yaxis.set_major_formatter(ticker.PercentFormatter(xmax=1))
+    ax.legend()
+>>>>>>> 54cfb7f (Final Changes)
 
     plt.tight_layout()
-    plt.savefig(f"{PLOTS_DIR}/sensitivity_window.png", dpi=150, bbox_inches="tight")
+    plt.savefig(f"{PLOTS_DIR}/sensitivity_window.png", dpi=150)
     plt.close()
-    print(f"Saved: {PLOTS_DIR}/sensitivity_window.png")
-except FileNotFoundError:
-    print(f"INFO: {SENSITIVITY_FILE} not found — skipping sensitivity plot")
+    print("Saved: sensitivity_window.png")
 
+<<<<<<< HEAD
 
 # ── Plot 6: Execution time comparison ────────────────────────────────
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
@@ -359,3 +494,10 @@ print("  3. hit_rate_bar.png            — ALL 5 traces at 64 frames")
 print("  4. tempograph_vs_lru.png       — improvement vs LRU (all traces)")
 print("  5. sensitivity_window.png      — window size W sensitivity")
 print("  6. execution_time.png          — timing overhead comparison")
+=======
+except FileNotFoundError:
+    print("Sensitivity file not found, skipping.")
+
+
+print("\nAll plots generated successfully.")
+>>>>>>> 54cfb7f (Final Changes)
