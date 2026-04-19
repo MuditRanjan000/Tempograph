@@ -43,11 +43,14 @@ def gen_scan(n, n_pages):
         print(i % n_pages)
 
 def gen_mixed(n, n_pages):
-    """Equal mix of correlated, uniform, and scan workloads."""
-    third = n // 3
-    gen_correlated(third, n_pages)
-    gen_uniform(third, n_pages)
-    gen_scan(n - 2 * third, n_pages)
+    """75% correlated + 25% uniform random.
+    This tests whether TempoGraph exploits correlation while handling noise.
+    (Note: does NOT include a scan component — scan is a separate trace type.)
+    """
+    corr_count = int(n * 0.75)
+    unif_count = n - corr_count
+    gen_correlated(corr_count, n_pages)
+    gen_uniform(unif_count, n_pages)
 
 if __name__ == "__main__":
     n        = int(sys.argv[1]) if len(sys.argv) > 1 else 10000

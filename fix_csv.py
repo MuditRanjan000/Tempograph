@@ -33,7 +33,7 @@ frames = [16, 32, 64, 128, 256]
 algos  = ["lru", "lfu", "arc", "tempograph", "sieve"]
 
 # Sensitivity analysis: vary W for TempoGraph on scan trace
-window_sizes = [5, 10, 15, 20, 25]
+window_sizes = [5, 10, 15, 20, 25, 30]
 
 # ── Pre-flight checks ─────────────────────────────────────────────────
 if not os.path.exists(exe):
