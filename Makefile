@@ -1,15 +1,11 @@
 # Makefile - TempoGraph Simulation Framework
 # CSD 204 - Operating Systems Project
-#
-# Usage:
-#   make          - build the simulator
-#   make clean    - remove build artifacts
-#   make run      - quick test with synthetic trace
+# Group 12: Mudit Ranjan, Mugdh Mittal, Aayush Trivedi
 
 CC      = gcc
 CFLAGS  = -O2 -Wall -Wextra -std=c99
 TARGET  = tempograph
-SRCS    = main.c lru.c lfu.c arc.c tempograph.c
+SRCS    = main.c lru.c lfu.c arc.c tempograph.c sieve.c
 OBJS    = $(SRCS:.c=.o)
 
 $(TARGET): $(OBJS)
@@ -19,13 +15,12 @@ $(TARGET): $(OBJS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-# Quick test: generate synthetic trace and run all algorithms
 run: $(TARGET)
-	python3 gen_trace.py 50000 1000 > test_trace.txt
-	./$(TARGET) -a all -f 64 test_trace.txt
+	python3 gen_trace.py 100000 255 --type scan --out traces/scan.txt
+	./$(TARGET) -a all -f 64 traces/scan.txt
 
 clean:
-	rm -f $(OBJS) $(TARGET) *.csv test_trace.txt
+	rm -f $(OBJS) $(TARGET) *.csv
 	@echo "Cleaned."
 
 .PHONY: clean run

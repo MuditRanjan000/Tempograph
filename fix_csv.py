@@ -22,7 +22,7 @@ import sys
 import glob
 
 # ── Config ────────────────────────────────────────────────────────────
-exe    = "./tempograph"
+exe = "tempograph.exe"
 TRACE_EXTENSIONS = ("*.txt", "*.csv")
 trace_paths = sorted(
     p for ext in TRACE_EXTENSIONS for p in glob.glob(os.path.join("traces", ext))
