@@ -4,34 +4,33 @@
  *
  * Changes from v4:
  *
- *   1. Eliminated cached_score[] array and all O(N) score-maintenance.
- *      v4 called update_scores_for_new_window_entry() on EVERY access
- *      (hit or miss), looping over all cap frames — O(N) per access.
- *      v5 computes scores on-demand only at eviction time.
+ * 1. Eliminated cached_score[] array and all O(N) score-maintenance.
+ * v4 called update_scores_for_new_window_entry() on EVERY access
+ * (hit or miss), looping over all cap frames — O(N) per access.
+ * v5 computes scores on-demand only at eviction time.
  *
- *   2. On-demand inward scoring.
- *      When a fault occurs, score_page(idx) scans the sliding window
- *      (W entries, W=10 by default) and sums w(W_i → idx).  Cost:
- *      O(W × E) where W ≤ 64 and E ≤ MAX_EDGES_PER_NODE — a small
- *      constant independent of cache size N.
+ * 2. On-demand inward scoring.
+ * When a fault occurs, score_page(idx) scans the sliding window
+ * (W entries, W=10 by default) and sums w(W_i → idx).  Cost:
+ * O(W × E) where W ≤ 64 and E ≤ MAX_EDGES_PER_NODE — a small
+ * constant independent of cache size N.
  *
- *   3. LRU-ordered doubly-linked list for O(1) tail sampling.
- *      Frames are kept in a doubly-linked list ordered by recency
- *      (head = MRU, tail = LRU).  On a hit the page moves to the
- *      head in O(1).  At eviction time choose_victim() walks at most
- *      SAMPLE_SIZE nodes from the tail, scores each one, and evicts
- *      the lowest scorer.  Total eviction cost: O(S × W × E) where
- *      S = SAMPLE_SIZE = 64 — O(1) w.r.t. N.
+ * 3. LRU-ordered doubly-linked list for O(1) tail sampling.
+ * Frames are kept in a doubly-linked list ordered by recency
+ * (head = MRU, tail = LRU).  On a hit the page moves to the
+ * head in O(1).  At eviction time choose_victim() walks at most
+ * SAMPLE_SIZE nodes from the tail, scores each one, and evicts
+ * the lowest scorer.  Total eviction cost: O(S × W × E) where
+ * S = SAMPLE_SIZE = 64 — O(1) w.r.t. N.
  *
- *   4. Asymptotic summary (N = cache size, W = window, E = edges/node,
- *      S = sample size — W, E, S are all fixed compile-time constants):
- *        Cache HIT:  O(W)  — update_graph only
- *        Cache MISS: O(W)  — update_graph + score S candidates
- *                           (S × W × E folds into O(1) w.r.t N)
- *        apply_decay: O(MAX_UNIQUE × E) — periodic, not per-access
+ * 4. Asymptotic summary (N = cache size, W = window, E = edges/node,
+ * S = sample size — W, E, S are all fixed compile-time constants):
+ * Cache HIT:  O(W × E)  — update_graph only
+ * Cache MISS: O(W × E)  — update_graph + score S candidates
+ * (S × W × E folds into O(1) w.r.t N)
  *
- *   5. Adjacency list, integer-only decay, MRU tiebreaking all
- *      carried forward from v4 unchanged.
+ * 5. Adjacency list, integer-only decay, MRU tiebreaking all
+ * carried forward from v4 unchanged.
  */
 
 #include "tempograph.h"
@@ -128,9 +127,9 @@ static void apply_decay(void) {
  * lru_prev[f], lru_next[f] — per-frame list links
  *
  * Operations:
- *   lru_touch(f)   — move frame f to MRU head  O(1)
- *   lru_insert(f)  — insert new frame at MRU head  O(1)
- *   lru_remove(f)  — unlink frame f from any position  O(1)
+ * lru_touch(f)   — move frame f to MRU head  O(1)
+ * lru_insert(f)  — insert new frame at MRU head  O(1)
+ * lru_remove(f)  — unlink frame f from any position  O(1)
  *
  * SAMPLE_SIZE tail nodes are inspected at eviction; all other frames
  * are never touched during eviction scoring.

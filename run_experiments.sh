@@ -32,10 +32,10 @@ mkdir -p "$RESULTS_DIR" "$TRACES_DIR"
 
 # ── Generate synthetic traces ────────────────────────────────────────
 echo "Generating synthetic traces..."
-python3 gen_trace.py 100000 1000 --type correlated > "$TRACES_DIR/correlated.txt"
-python3 gen_trace.py 100000 1000 --type uniform    > "$TRACES_DIR/uniform.txt"
-python3 gen_trace.py 100000 1000 --type scan       > "$TRACES_DIR/scan.txt"
-python3 gen_trace.py 100000 1000 --type mixed      > "$TRACES_DIR/mixed.txt"
+python3 gen_trace.py 100000 500 --type correlated > "$TRACES_DIR/correlated.txt"
+python3 gen_trace.py 100000 500 --type uniform    > "$TRACES_DIR/uniform.txt"
+python3 gen_trace.py 100000 500 --type scan       > "$TRACES_DIR/scan.txt"
+python3 gen_trace.py 100000 500 --type mixed      > "$TRACES_DIR/mixed.txt"
 echo "Traces ready."
 
 # ── CSV header ───────────────────────────────────────────────────────
